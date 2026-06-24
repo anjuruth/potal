@@ -36,3 +36,7 @@ app.use('/api/skill-levels', require('./routes/skillLevels'));
 app.get('/health', (_, res) => res.json({ status: 'ok', time: new Date() }));
 
 app.listen(PORT, () => console.log(`PlaceCell backend running on port ${PORT}`));
+
+// Prevent crashes from unhandled errors
+process.on('uncaughtException', (err) => console.error('Uncaught Exception:', err.message));
+process.on('unhandledRejection', (reason) => console.error('Unhandled Rejection:', reason));

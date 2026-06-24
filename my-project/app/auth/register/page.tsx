@@ -26,8 +26,13 @@ export default function RegisterPage() {
   const onSubmit = async (data: any) => {
     setLoading(true);
     try {
-      await authApi.register(data);
-      setSuccess(true);
+      const res = await authApi.register(data);
+      if (res.data.auto_activated) {
+        toast.success('Account created! You can now log in.');
+        router.push('/auth/login');
+      } else {
+        setSuccess(true);
+      }
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Registration failed');
     } finally { setLoading(false); }

@@ -64,10 +64,16 @@ router.post('/register', async (req, res) => {
       );
     }
 
-    const verifyToken = signToken({ userId, email, purpose: 'email_verification' }, '24h');
-    try { await sendVerificationEmail(email, full_name, verifyToken); } catch (e) { console.error('Email error:', e.message); }
-
-    res.status(201).json({ message: 'Registration successful. Please verify your email.' });
+    const emailConfigured = process.env.GMAIL_USER && process.env.GMAIL_PASS;
+    if (emailConfigured) {
+      const verifyToken = signToken({ userId, email, purpose: 'email_verification' }, '24h');
+      try { await sendVerificationEmail(email, full_name, verifyToken); } catch (e) { console.error('Email error:', e.message); }
+      res.status(201).json({ message: 'Registration successful. Please verify your email.' });
+    } else {
+      // No email configured — activate account immediately
+      await db.execute('UPDATE Users SET status=? WHERE user_id=?', ['active', userId]);
+      res.status(201).json({ message: 'Registration successful. You can now log in.', auto_activated: true });
+    }
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Registration failed', error: err.message });
