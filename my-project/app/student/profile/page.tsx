@@ -1,14 +1,13 @@
 'use client';
 import { useEffect, useState, useRef } from 'react';
 import toast from 'react-hot-toast';
-import { Loader2, Save, Camera, User, BookOpen, Award } from 'lucide-react';
+import { Loader2, Save, Camera, User, BookOpen } from 'lucide-react';
 import { studentApi } from '@/lib/api';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000';
 
 export default function ProfilePage() {
   const [profile, setProfile] = useState<any>(null);
-  const [batches, setBatches] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<any>({});
@@ -16,10 +15,10 @@ export default function ProfilePage() {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    Promise.all([studentApi.getProfile(), studentApi.getBatches?.()])
-      .then(([profileRes, batchRes]) => {
-        const p = profileRes.data;
+  const loadProfile = () =>
+    studentApi.getProfile()
+      .then(res => {
+        const p = res.data;
         setProfile(p);
         setForm({
           full_name: p.full_name || '',
@@ -27,13 +26,14 @@ export default function ProfilePage() {
           register_no: p.register_no || '',
           cgpa: p.cgpa || '',
           backlog_count: p.backlog_count ?? 0,
-          batch_id: p.batch_id || '',
+          college_name: p.college_name || '',
+          batch_name: p.batch_name || '',
         });
-        if (batchRes) setBatches(batchRes.data);
       })
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, []);
+
+  useEffect(() => { loadProfile(); }, []);
 
   const handlePhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -50,8 +50,7 @@ export default function ProfilePage() {
       if (photoFile) fd.append('photo', photoFile);
       await studentApi.updateProfile(fd);
       toast.success('Profile updated!');
-      const res = await studentApi.getProfile();
-      setProfile(res.data);
+      loadProfile();
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Update failed');
     } finally { setSaving(false); }
@@ -136,15 +135,11 @@ export default function ProfilePage() {
           </div>
           <div>
             <label className="label">Email</label>
-            <input className="input bg-slate-50" value={profile?.email || ''} disabled />
-          </div>
-          <div>
-            <label className="label">College</label>
-            <input className="input bg-slate-50" value={profile?.college_name || 'Not set'} disabled />
+            <input className="input bg-slate-50 dark:bg-slate-700/50" value={profile?.email || ''} disabled />
           </div>
           <div>
             <label className="label">Department</label>
-            <input className="input bg-slate-50" value={profile?.department_name || 'Not set'} disabled />
+            <input className="input bg-slate-50 dark:bg-slate-700/50" value={profile?.department_name || ''} disabled />
           </div>
         </div>
       </div>
@@ -157,6 +152,14 @@ export default function ProfilePage() {
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
+            <label className="label">College Name</label>
+            <input className="input" value={form.college_name} onChange={e => setForm({ ...form, college_name: e.target.value })} placeholder="e.g. Providence College of Engineering" />
+          </div>
+          <div>
+            <label className="label">Batch / Year</label>
+            <input className="input" value={form.batch_name} onChange={e => setForm({ ...form, batch_name: e.target.value })} placeholder="e.g. 2021-2025" />
+          </div>
+          <div>
             <label className="label">Register Number</label>
             <input className="input" value={form.register_no} onChange={e => setForm({ ...form, register_no: e.target.value })} placeholder="e.g. 20CS001" />
           </div>
@@ -167,17 +170,6 @@ export default function ProfilePage() {
           <div>
             <label className="label">Active Backlogs</label>
             <input className="input" type="number" min="0" value={form.backlog_count} onChange={e => setForm({ ...form, backlog_count: e.target.value })} placeholder="0" />
-          </div>
-          <div>
-            <label className="label">Batch</label>
-            {batches.length > 0 ? (
-              <select className="input" value={form.batch_id} onChange={e => setForm({ ...form, batch_id: e.target.value })}>
-                <option value="">Select Batch</option>
-                {batches.map(b => <option key={b.batch_id} value={b.batch_id}>{b.batch_name}</option>)}
-              </select>
-            ) : (
-              <input className="input bg-slate-50" value={profile?.batch_name || 'No batches available'} disabled />
-            )}
           </div>
         </div>
       </div>

@@ -102,21 +102,53 @@ router.get('/profile', async (req, res) => {
 router.put('/profile', upload.single('photo'), async (req, res) => {
   try {
     const userId = req.user.userId;
-    const { full_name, mobile, register_no, cgpa, backlog_count, batch_id } = req.body;
+    const { full_name, mobile, register_no, cgpa, backlog_count, college_name, batch_name } = req.body;
     const photo = req.file ? `/uploads/photos/${req.file.filename}` : undefined;
+
+    // Resolve college_id from college_name text
+    let college_id = null;
+    if (college_name && college_name.trim()) {
+      const [cols] = await db.execute('SELECT college_id FROM Colleges WHERE college_name = ?', [college_name.trim()]);
+      if (cols.length > 0) {
+        college_id = parseInt(cols[0].college_id) || null;
+      } else {
+        const [[{ maxId }]] = await db.execute('SELECT IFNULL(MAX(CAST(college_id AS UNSIGNED)), 0) + 1 AS maxId FROM Colleges');
+        college_id = maxId;
+        await db.execute('INSERT INTO Colleges (college_id, college_name, status) VALUES (?,?,?)', [String(college_id), college_name.trim(), 'active']);
+      }
+    }
+
+    // Resolve batch_id from batch_name text
+    let batch_id = null;
+    if (batch_name && batch_name.trim()) {
+      const [batches] = await db.execute('SELECT batch_id FROM BATCH WHERE batch_name = ? AND college_id = ?', [batch_name.trim(), college_id]);
+      if (batches.length > 0) {
+        batch_id = batches[0].batch_id;
+      } else {
+        const [br] = await db.execute(
+          'INSERT INTO BATCH (college_id, batch_name, status, created_date) VALUES (?,?,?,CURDATE())',
+          [college_id, batch_name.trim(), 'active']
+        );
+        batch_id = br.insertId;
+      }
+    }
 
     const userFields = ['full_name = ?', 'mobile = ?'];
     const userValues = [full_name, mobile];
     if (photo) { userFields.push('photo = ?'); userValues.push(photo); }
+    if (college_id) { userFields.push('college_id = ?'); userValues.push(college_id); }
     userValues.push(userId);
     await db.execute(`UPDATE Users SET ${userFields.join(', ')} WHERE user_id = ?`, userValues);
 
     const [students] = await db.execute('SELECT student_id FROM STUDENT WHERE user_id = ?', [userId]);
     if (students.length > 0) {
-      await db.execute(
-        'UPDATE STUDENT SET register_no = ?, cgpa = ?, backlog_count = ?, batch_id = ? WHERE user_id = ?',
-        [register_no || null, cgpa || null, backlog_count || 0, batch_id || null, userId]
-      );
+      const studentFields = ['register_no = ?', 'cgpa = ?', 'backlog_count = ?'];
+      const studentValues = [register_no || null, cgpa || null, backlog_count || 0];
+      if (college_id) { studentFields.push('college_id = ?'); studentValues.push(college_id); }
+      if (batch_id !== null) { studentFields.push('batch_id = ?'); studentValues.push(batch_id); }
+      studentValues.push(userId);
+      await db.execute(`UPDATE STUDENT SET ${studentFields.join(', ')} WHERE user_id = ?`, studentValues);
+
       if (batch_id) {
         const [[{ cnt }]] = await db.execute(
           'SELECT COUNT(*) as cnt FROM BATCH_STUDENT WHERE student_id = ? AND batch_id = ?',
