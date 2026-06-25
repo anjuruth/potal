@@ -45,10 +45,8 @@ CREATE DATABASE placement_portal CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_c
 2. Import the schema:
 
 ```bash
-mysql -u root -p placement_portal < placement_fixed.sql
+mysql -u root -p placement_portal < database.sql
 ```
-
-> If you don't have the SQL file, the tables are defined in `backend/routes/` and you can refer to the schema section below.
 
 ---
 
