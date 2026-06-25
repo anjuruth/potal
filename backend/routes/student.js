@@ -76,12 +76,14 @@ router.get('/profile', async (req, res) => {
               u.college_id, u.department_id,
               s.student_id, s.register_no, s.cgpa, s.backlog_count,
               s.placement_status, s.batch_id,
-              d.department_name, c.college_name,
+              d.department_name,
+              COALESCE(c.college_name, c2.college_name) AS college_name,
               b.batch_name
        FROM Users u
        LEFT JOIN STUDENT s ON u.user_id = s.user_id
        LEFT JOIN Departments d ON u.department_id = d.department_id
        LEFT JOIN Colleges c ON CAST(u.college_id AS CHAR) = c.college_id
+       LEFT JOIN Colleges c2 ON CAST(s.college_id AS CHAR) = c2.college_id
        LEFT JOIN BATCH b ON s.batch_id = b.batch_id
        WHERE u.user_id = ?`, [req.user.userId]);
 
